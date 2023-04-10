@@ -20,6 +20,7 @@ setup(
     license='Apache Software License',
     packages= [
         'paddle-plugins',
+        'paddle_npu'
     ],
     include_package_data=True,
     package_data = {

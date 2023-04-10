@@ -45,14 +45,21 @@ if(WITH_KERNELS)
   list(APPEND CUSTOM_NPU_SRCS ${CUSTOM_KERNEL_SRCS})
 endif()
 
-# C++ infer lib need to compatiable with CXX11
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -D_GLIBCXX_USE_CXX11_ABI=1")
 if(ON_INFER)
   link_directories(${PADDLE_INFERENCE_LIB_DIR})
 endif()
 
+# NOTE(wangran16): we need to avoid the ge required macro
+# '_GLIBCXX_USE_CXX11_ABI' affecting the plugin compilation
+add_library(ge_api SHARED runtime/ge_api.cc)
+target_link_libraries(ge_api PRIVATE graph ge_runner pybind)
+target_compile_options(ge_api PRIVATE -fPIC)
+target_compile_definitions(ge_api PRIVATE -D_GLIBCXX_USE_CXX11_ABI=0)
+
 # build shared library
 add_library(${CUSTOM_NPU_NAME} SHARED ${CUSTOM_NPU_SRCS})
+target_compile_definitions(${CUSTOM_NPU_NAME}
+                           PRIVATE -D_GLIBCXX_USE_CXX11_ABI=1)
 add_dependencies(${CUSTOM_NPU_NAME} ascend_cl)
 target_link_libraries(${CUSTOM_NPU_NAME} PRIVATE ${ascendcl_lib}
                                                  ${ascend_hccl_lib})
@@ -101,9 +108,24 @@ add_custom_command(
   COMMENT "Creating custom device dirrectories------>>>")
 
 add_custom_command(
+  TARGET ge_api
+  POST_BUILD
+  COMMAND ${CMAKE_COMMAND} -E remove -f
+          ${CMAKE_CURRENT_BINARY_DIR}/python/paddle_npu
+  COMMAND ${CMAKE_COMMAND} -E make_directory ${CMAKE_CURRENT_BINARY_DIR}/python/
+  COMMAND
+    ${CMAKE_COMMAND} -E copy_directory
+    ${CMAKE_CURRENT_SOURCE_DIR}/python/paddle_npu
+    ${CMAKE_CURRENT_BINARY_DIR}/python/paddle_npu
+  COMMAND
+    ${CMAKE_COMMAND} -E copy_if_different
+    ${CMAKE_CURRENT_BINARY_DIR}/libge_api.so
+    ${CMAKE_CURRENT_BINARY_DIR}/python/paddle_npu/_ge.so)
+
+add_custom_command(
   OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/python/.timestamp
   COMMAND python3 ${CMAKE_CURRENT_BINARY_DIR}/setup.py bdist_wheel
-  DEPENDS ${CUSTOM_NPU_NAME}
+  DEPENDS ${CUSTOM_NPU_NAME} ge_api
   COMMENT "Packing whl packages------>>>")
 
 add_custom_target(python_package ALL
