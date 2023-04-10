@@ -12,17 +12,17 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "ge/ge_api.h"
-
 #include <Python.h>
 #include <pybind11/pybind11.h>
 #include <pybind11/stl.h>
 
 #include <iostream>
 
+// NOLINT
 #include "acl/acl_base.h"
 #include "acl/acl_rt.h"
 #include "all_ops.h"  // NOLINT
+#include "ge/ge_api.h"
 #include "ge/ge_api_types.h"
 #include "ge/ge_error_codes.h"
 #include "ge/ge_ir_build.h"
